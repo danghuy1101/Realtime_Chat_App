@@ -1,0 +1,44 @@
+[
+  {
+    "ContainingType": "API.Controllers.HubServiceController",
+    "Method": "GetAvailableGroups",
+    "RelativePath": "HubService/availableGroups",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "API.Controllers.HubServiceController",
+    "Method": "GetMembers",
+    "RelativePath": "HubService/GetMembers/{groupName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "groupName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "API.Controllers.HubServiceController",
+    "Method": "GetUserGroupName",
+    "RelativePath": "HubService/GetUserGroupName/{connectionId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "connectionId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]

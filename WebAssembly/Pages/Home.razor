@@ -1,0 +1,242 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@using WebAssembly.SignalConnections
+@inject SignalRConnection signalRConnection
+@implements IDisposable
+@inject HttpClient httpClient
+@inject IJSRuntime js
+<PageTitle>Home</PageTitle>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-header display-1 fs-4 text-primary">Available Groups</div>
+            <div class="card-body">
+                @if (AvailableGroups != null)
+                {
+                    <ul class="list-group">
+                        @foreach (string group in AvailableGroups)
+                        {
+                            <li class="list-group-item list-group-item-action" style="cursor:pointer"
+                            @onclick="(() => LoadGroup(group))">
+                                @group
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <em>No Group available</em>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-9 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <span class="display-1 fs-4 text-primary">Online Users</span>
+                <a class="btn btn-success btn-sm float-end" @onclick="Connect">Connect</a>
+                <a class="btn btn-danger btn-sm float-end" @onclick="Disconnect">Disconnect</a>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    @if (OnlineUsers != null)
+                    {
+                        <ul class="list-group">
+                            @foreach (string user in OnlineUsers)
+                            {
+                                <li class="list-group-item list-group-item-action" @onclick="(() => ChatUser(user))">@user</li>
+                            }
+                        </ul>
+                    }
+                </div>
+                <div class="card-footer">@signalRConnection.ConnectionState</div>
+            </div>
+        </div>
+    </div>
+    @if (!string.IsNullOrEmpty(GroupName))
+    {
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header display-1 fs-5 text-success">
+                    @GroupName Members
+                    <button class="btn btn-success btn-sm float-end" @onclick="(() => JoinGroup(GroupName))">
+                        Join
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (GroupMembers != null)
+                    {
+                        <ul>
+                            @foreach (string member in GroupMembers)
+                            {
+                                <li>@member</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header display-1 fs-5 text-success">@GroupName Chats</div>
+                <div class="card-body">
+                    @if (ChatMessages != null)
+                    {
+                        foreach (string message in ChatMessages)
+                        {
+
+                            @if(message.Contains(ConnectionId))
+                            {
+                                <div class="card m-2 p-2 border-1 w-25 shadow-lg"
+                                style="border-radius:12px; position:relative; left:75%">
+                                    @((MarkupString)FormatDefaultMessage(message))
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="card my-2 p-2 border-1 w-25 shadow-lg"
+                                style="border-radius:12px; position:relative; left:0%">
+                                    @((MarkupString)FormatForeignMessage(message))
+                                </div>
+                            }
+
+                        }
+                    }
+                </div>
+                <div class="card-footer">
+                    <textarea cols="5" @bind="Message" class="form-control mb-3"></textarea>
+                    <button class="btn btn-success float-end" @onclick="SendMessage">Send Message</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    string Message = string.Empty;
+    string GroupName = string.Empty;
+    IEnumerable<string> GroupMembers = [];
+    IEnumerable<string> AvailableGroups = [];
+    List<string> OnlineUsers = [];
+    List<string> ChatMessages = [];
+    IEnumerable<string> ConnectedClients = [];
+    protected override async Task OnInitializedAsync()
+    {
+        signalRConnection.ConnectionStateChanged += StateHasChanged;
+        Subscriptions();
+        await Connect();
+        await GetGroups();
+    }
+
+    void Subscriptions()
+    {
+        signalRConnection.hubConnection.On<string, List<string>>("AllClientsNotification", (connectionId, connectedClients) =>
+        {
+            if (string.IsNullOrEmpty(ConnectionId)) { ConnectionId = connectionId; }
+            OnlineUsers = connectedClients;
+            StateHasChanged();
+        });
+
+        signalRConnection.hubConnection.On<IEnumerable<string>>("NotifyGroupOfNewJoin", (groupMembers) =>
+        {
+            GroupMembers = groupMembers;
+            StateHasChanged();
+        });
+
+        signalRConnection.hubConnection.On<string, string>("Chat", (connectionId, message) =>
+        {
+            ChatMessages.Add($"{connectionId}: {message}");
+            StateHasChanged();
+        });
+
+        signalRConnection.hubConnection.On<List<string>>("RetrieveOldMessages", (oldMessages) =>
+        {
+            ChatMessages = oldMessages;
+            StateHasChanged();
+        });
+    }
+
+    static string ConnectionId = string.Empty;
+    static string ReceiverConnectionId = string.Empty;
+    async Task SendMessage()
+    {
+        if (!string.IsNullOrEmpty(ConnectionId) && string.IsNullOrEmpty(ReceiverConnectionId))
+        {
+            string userGroupName = await httpClient.GetStringAsync($"hubService/GetUserGroupName/{ConnectionId}");
+            await signalRConnection.hubConnection.InvokeAsync("SendMessageToGroup", userGroupName, Message);
+
+        }
+        else if (!string.IsNullOrEmpty(ConnectionId) && !string.IsNullOrEmpty(ReceiverConnectionId))
+        {
+            var id = ReceiverConnectionId.Trim().Split(" ")[0];
+            await signalRConnection.hubConnection.InvokeAsync("SendMessageToIndividual", id, Message);
+            ChatMessages.Add($"{ConnectionId}: {Message}");
+        }
+        Message = string.Empty;
+    }
+
+    private async Task GetGroups() 
+        => AvailableGroups = await httpClient.GetFromJsonAsync<IEnumerable<string>>("hubService/availableGroups");
+
+    async Task LoadGroup(string groupName)
+    {
+        ChatMessages?.Clear();
+        GroupName = groupName;
+        await GetGroupMembers(groupName);
+        StateHasChanged();
+    }
+
+    async Task JoinGroup(string groupName) 
+        => await signalRConnection.hubConnection.InvokeAsync("JoinGroup", groupName);
+
+    async Task GetGroupMembers(string groupName)
+        => GroupMembers = await httpClient.GetFromJsonAsync<IEnumerable<string>>($"hubService/GetMembers/{groupName}")!;
+
+    string FormatForeignMessage(string message)
+    {
+        var connectionId = message.Split(":")[0];
+        var userMessage = message.Split(":")[1];
+        return $"{userMessage}<br/> <em>{connectionId}</em>";
+    }
+
+    string FormatDefaultMessage(string message)
+    {
+        var connectionId = message.Split(":")[0];
+        var userMessage = message.Split(":")[1];
+        return $"{userMessage}<br/> <em>me</em>";
+    }
+
+    async Task Connect() => await signalRConnection.StartConnection();
+    async Task Disconnect()
+    {
+        ConnectionId = string.Empty;
+        await signalRConnection.CloseConnection();
+        OnlineUsers!.Clear();
+    }
+    public void Dispose() => signalRConnection.ConnectionStateChanged -= StateHasChanged;
+
+    // Chat user
+    bool CalledMessageRetrieval = false;
+    async void ChatUser(string receiverConnectionId)
+    {
+        var id = receiverConnectionId.Trim().Split(" ")[0];
+        if (Equals(ConnectionId, id))
+        {
+            await js.InvokeVoidAsync("alert", "You cannot message yourself");
+            return;
+        }
+        GroupName = receiverConnectionId;
+        ReceiverConnectionId = receiverConnectionId;
+        ChatMessages?.Clear();
+        if (!CalledMessageRetrieval)
+        {
+            try
+            {
+                await signalRConnection.hubConnection.InvokeAsync("RetrieveOldMessages");
+                CalledMessageRetrieval = true;
+            }
+            catch { }
+        }
+    }
+}
