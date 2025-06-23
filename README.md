@@ -1,23 +1,22 @@
-# 📦 Inventory Management System
+# 💬 Real-Time Chat App with Blazor & SignalR
 
-**Inventory Management System** is a full-stack web application designed to manage products, users, and orders efficiently. Built with **Blazor WebAssembly**, **ASP.NET Core**, and **SQL Server**, the system features a modern UI with Syncfusion components, secure authentication, and real-time order tracking.
+This is a real-time web chat application built with **Blazor WebAssembly**, **ASP.NET Core Web API**, and **SignalR**. It allows users to send and receive messages instantly with a smooth, modern UI.
 
 ## 🛠️ Technologies Used
 
-- **Frontend**: Blazor WebAssembly, Syncfusion UI
+- **Frontend**: Blazor WebAssembly
 - **Backend**: ASP.NET Core Web API
-- **Database**: SQL Server with Entity Framework Core
-- **Real-time**: SignalR
-- **Architecture**: Layered (Service + Repository pattern)
+- **Real-time Communication**: SignalR
+- **Data Format**: JSON
 
 ## 🚀 Features
 
-- 🔹 Modern UI built with Syncfusion and Blazor components  
-- 🔹 Role-based authentication & authorization (`Admin`, `Manager`, `User`)  
-- 🔹 Full CRUD operations for **products**, **users**, and **orders**  
-- 🔹 Real-time updates of order statuses via **SignalR**  
-- 🔹 Clean architecture using layered service & repository patterns  
+- 🔹 Real-time messaging with SignalR  
+- 🔹 Blazor component-based UI  
+- 🔹 Separate client and server projects  
+- 🔹 Auto-scroll and message formatting  
+- 🔹 Clean and minimal design
 
 ## 📌 Purpose
 
-This project was created to strengthen skills in **Blazor WebAssembly**, **.NET Core**, and **modern web development** practices including component-based UI, real-time communication, and scalable architecture design.
+This project demonstrates how to build a **real-time web application** using modern .NET technologies including SignalR and Blazor WebAssembly.
